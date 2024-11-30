@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hangman Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        .game-board {
+            margin-top: 20px;
+        }
+        #word-progress {
+            font-size: 24px;
+            letter-spacing: 5px;
+        }
+        .game-over {
+            color: red;
+            font-weight: bold;
+        }
+        .game-won {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Hangman Game</h1>
+
+    <div id="menu">
+        <button onclick="startSinglePlayer()">Start Single Player Game</button>
+        <button onclick="createDuel()">Create Duel Game</button>
+    </div>
+
+    <div id="game" class="hidden">
+        <p id="game-status"></p>
+        <div class="game-board">
+            <p id="word-progress">_ _ _ _ _</p> <!-- Progression display -->
+            <p>Attempts Left: <span id="attempts-left"></span></p>
+            <input type="text" id="guess-input" maxlength="1">
+            <button onclick="makeGuess()">Guess</button>
+        </div>
+    </div>
+
+    <script>
+        const websocket = new WebSocket("ws://localhost:8080/game"); // Update with your backend's WebSocket URL
+        let gameId = null;
+        let isPlayerOne = true;
+
+        websocket.onmessage = (event) => {
+            const response = JSON.parse(event.data);
+            if (response.action === "GAME_CREATED") {
+		gameId = response.gameId;
+                document.getElementById("menu").classList.add("hidden");
+		document.getElementById("game").classList.remove("hidden");
+		if (response.gameState == "IN_PROGRESS"){
+                  document.getElementById("game-status").textContent = "Game Started!";
+                  document.getElementById("word-progress").textContent = response.message; // Display initial word progress
+                  document.getElementById("attempts-left").textContent = response.attemptsLeft;
+		}
+		else if (response.gameState == "WAITING_FOR_PLAYER"){
+		  document.getElementById("game-status").textContent = "Waiting for player Two.";
+                  document.getElementById("word-progress").textContent = "http://localhost:8000" + response.message; // Display initial word progress
+                  document.getElementById("attempts-left").textContent = response.attemptsLeft;
+		}
+            } else if (response.action === "GAME_UPDATED") {
+                document.getElementById("word-progress").textContent = response.message; // Update word progress
+                document.getElementById("attempts-left").textContent = response.attemptsLeft;
+                if (response.gameState === "FINISHED") {
+                    const finalStatus = response.attemptsLeft > 0 ? "You Won!" : "Game Over!";
+                    const finalClass = response.attemptsLeft > 0 ? "game-won" : "game-over";
+                    document.getElementById("game-status").textContent = finalStatus;
+                    document.getElementById("game-status").className = finalClass;
+                    document.getElementById("guess-input").disabled = true;
+                }
+            }
+        };
+
+        function startSinglePlayer() {
+            const message = {
+                action: "NEW_SINGLE_PLAYER",
+            };
+            websocket.send(JSON.stringify(message));
+        }
+
+        function createDuel() {
+            const word = prompt("Enter a word for Player 2:");
+            if (word) {
+                const message = {
+                    action: "NEW_DUEL",
+                    word: word,
+                };
+                websocket.send(JSON.stringify(message));
+            }
+        }
+
+        function makeGuess() {
+            const guess = document.getElementById("guess-input").value;
+            if (guess) {
+                const message = {
+                    action: "MAKE_GUESS",
+                    gameId: gameId,
+                    guess: guess,
+                    isPlayerOne: isPlayerOne,
+                };
+                websocket.send(JSON.stringify(message));
+                document.getElementById("guess-input").value = "";
+            }
+        }
+	document.addEventListener("DOMContentLoaded", () => {
+    	const params = new URLSearchParams(window.location.search);
+    	const inviteToken = params.get("inviteToken");
+    	if (inviteToken) {
+          const word = prompt("Enter your word for the duel:");
+          if (word) {
+            const message = {
+                action: "JOIN_GAME",
+                inviteToken: inviteToken,
+                word: word,
+            };
+            websocket.send(JSON.stringify(message));
+        }
+    }
+});
+    </script>
+</body>
+</html>
