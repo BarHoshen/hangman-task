@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class GameResponse {
+    private String gameId;
     private String action;
     private String message;
     private String gameState;

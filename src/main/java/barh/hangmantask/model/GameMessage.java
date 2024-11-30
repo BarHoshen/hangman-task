@@ -1,5 +1,6 @@
 package barh.hangmantask.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
@@ -9,6 +10,7 @@ public class GameMessage {
     private String gameId;
     private String inviteToken;
     private String guess;
+    @JsonProperty(value = "isPlayerOne")
     private boolean isPlayerOne;
 }
 

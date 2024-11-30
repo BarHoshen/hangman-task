@@ -5,6 +5,7 @@ import barh.hangmantask.repository.GameRepository;
 import lombok.Data;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,37 +29,38 @@ public class GameService {
         game.setPlayerOneWord(word);
         game.setCurrentProgressPlayerOne("_".repeat(word.length()));
         game.setAttemptsLeftPlayerOne(6);
-        game.setIsPlayerOneTurn(true);
+        game.setPlayerOneTurn(true);
         return gameRepository.save(game);
     }
 
-    public Game createDuel(String playerOneWord) {
+    public Game createDuel(String word) {
         Game game = new Game();
         game.setMode("DUEL");
-        game.setPlayerOneWord(playerOneWord);
-        game.setCurrentProgressPlayerOne("_".repeat(playerOneWord.length()));
+        game.setPlayerTwoWord(word);
+        game.setCurrentProgressPlayerTwo("_".repeat(word.length()));
         game.setAttemptsLeftPlayerOne(6);
-        game.setIsPlayerOneTurn(true);
+        game.setPlayerOneTurn(true);
         game.setInviteToken(UUID.randomUUID().toString());
         return gameRepository.save(game);
     }
 
-    public Game joinDuel(String inviteToken, String playerTwoWord) {
+    public Game joinDuel(String inviteToken, String word) {
         Game game = gameRepository.findByInviteToken(inviteToken);
-        game.setPlayerTwoWord(playerTwoWord);
-        game.setCurrentProgressPlayerTwo("_".repeat(playerTwoWord.length()));
+        game.setPlayerOneWord(word);
+        game.setCurrentProgressPlayerOne("_".repeat(word.length()));
         game.setAttemptsLeftPlayerTwo(6);
         return gameRepository.save(game);
     }
 
+    //TODO: reconsider logic that recreates progress string every time.
     public Game makeGuess(String gameId, char guess, boolean isPlayerOne) {
         Optional<Game> gameOptional = gameRepository.findById(gameId);
         if (gameOptional.isEmpty()) {
             throw new IllegalArgumentException("Game not found");
         }
         Game game = gameOptional.get();
-        String word = isPlayerOne ? game.getPlayerTwoWord() : game.getPlayerOneWord();
-        StringBuilder progress = new StringBuilder(isPlayerOne ? game.getCurrentProgressPlayerTwo() : game.getCurrentProgressPlayerOne());
+        String word = isPlayerOne ? game.getPlayerOneWord() : game.getPlayerTwoWord();
+        StringBuilder progress = new StringBuilder(isPlayerOne ? game.getCurrentProgressPlayerOne() : game.getCurrentProgressPlayerTwo());
         boolean correct = false;
         for (int i = 0; i < word.length(); i++) {
             if (word.charAt(i) == guess) {
@@ -68,26 +70,26 @@ public class GameService {
         }
         if (!correct) {
             if (isPlayerOne) {
-                game.setAttemptsLeftPlayerTwo(game.getAttemptsLeftPlayerTwo() - 1);
-            } else {
                 game.setAttemptsLeftPlayerOne(game.getAttemptsLeftPlayerOne() - 1);
+            } else {
+                game.setAttemptsLeftPlayerTwo(game.getAttemptsLeftPlayerTwo() - 1);
             }
         }
         if (isPlayerOne) {
-            game.setCurrentProgressPlayerTwo(progress.toString());
-        } else {
             game.setCurrentProgressPlayerOne(progress.toString());
+        } else {
+            game.setCurrentProgressPlayerTwo(progress.toString());
         }
-        game.setIsPlayerOneTurn(!isPlayerOne);
-        if (progress.toString().equals(word) || game.getAttemptsLeftPlayerOne() <= 0 || game.getAttemptsLeftPlayerTwo() <= 0) {
+        game.setPlayerOneTurn(!isPlayerOne);
+        if (progress.toString().equals(word) || game.getAttemptsLeftPlayerOne() <= 0 || (game.getAttemptsLeftPlayerTwo() <= 0 && game.getMode().equals("DUEL"))) {
             game.setGameFinished(true);
         }
         return gameRepository.save(game);
-}
-
-private String fetchRandomWord() {
-    return restTemplate.getForObject("https://random-word-api.herokuapp.com/word", String.class)
-            .replaceAll("[\"\\[\\]]", "");
-}
+    }
+    //TODO: Add exception handling for api call.
+    private String fetchRandomWord() {
+        return restTemplate.getForObject("https://random-word-api.herokuapp.com/word", String.class)
+                .replaceAll("[\"\\[\\]]", "");
+    }
 }
 

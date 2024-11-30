@@ -31,11 +31,13 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         sessionMap.put(session.getId(), session);
         System.out.println("Connected: " + session.getId());
     }
+
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         sessionMap.remove(session.getId());
         System.out.println("Disconnected: " + session.getId());
     }
+
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws IOException {
         System.out.println("Received: " + message.getPayload());
@@ -43,41 +45,39 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         try {
             GameMessage gameMessage = objectMapper.readValue(message.getPayload(), GameMessage.class);
             response = switch (gameMessage.getAction()) {
-                case "NEW_SINGLE_PLAYER" -> createSinglePlayerGame(session, gameMessage);
-                case "NEW_DUEL" -> createDuel(session, gameMessage);
-                case "JOIN_GAME" -> joinGame(session, gameMessage);
-                case "MAKE_GUESS" -> processGuess(session, gameMessage);
-                default -> new GameResponse("UNKNOWN", "Unrecognized action.", "unknown", -1); //session.sendMessage(new TextMessage("Unknown action: " + gameMessage.getAction()));
+                case "NEW_SINGLE_PLAYER" -> createSinglePlayerGame();
+                case "NEW_DUEL" -> createDuel(gameMessage);
+                case "JOIN_GAME" -> joinGame(gameMessage);
+                case "MAKE_GUESS" -> processGuess(gameMessage);
+                default ->
+                        new GameResponse("-1", "UNKNOWN", "Unrecognized action.", "unknown", -1); //session.sendMessage(new TextMessage("Unknown action: " + gameMessage.getAction()));
             };
         } catch (Exception e) {
-            response = new GameResponse("ERROR", "Error parsing message.", "unknown", -1);
+            response = new GameResponse("-1", "ERROR", "Error parsing message.", "unknown", -1);
         }
         String jsonResponse = objectMapper.writeValueAsString(response);
         session.sendMessage(new TextMessage(jsonResponse));
     }
 
 
-    private GameResponse createSinglePlayerGame(WebSocketSession session, GameMessage gameMessage) throws IOException {
+    private GameResponse createSinglePlayerGame() {
         Game game = gameService.createSinglePlayerGame();
-        return new GameResponse("GAME_CREATED", game.getId(), "IN_PROGRESS", game.getAttemptsLeftPlayerOne());
-        //session.sendMessage(new TextMessage("GAME_CREATED: " + gameService.createSinglePlayerGame().getId()));
+        return new GameResponse(game.getId(), "GAME_CREATED", game.getCurrentProgressPlayerOne(), "IN_PROGRESS", game.getAttemptsLeftPlayerOne());
     }
-    private GameResponse createDuel(WebSocketSession session, GameMessage gameMessage) throws IOException {
+
+    private GameResponse createDuel(GameMessage gameMessage) {
         Game game = gameService.createDuel(gameMessage.getWord());
-        return new GameResponse("GAME_CREATED", game.getInviteToken(), "WAITING_FOR_PLAYER", 0);
-        //session.sendMessage(new TextMessage("GAME_CREATED: " + game.getInviteToken()));
+        return new GameResponse(game.getId(), "GAME_CREATED", "?inviteToken=" + game.getInviteToken(), "WAITING_FOR_PLAYER", 0);
     }
 
-    private GameResponse joinGame(WebSocketSession session, GameMessage gameMessage) throws IOException {
+    private GameResponse joinGame(GameMessage gameMessage) {
         Game game = gameService.joinDuel(gameMessage.getInviteToken(), gameMessage.getWord());
-        return new GameResponse("GAME_JOINED", game.getId(), "IN_PROGRESS", game.getAttemptsLeftPlayerTwo());
-        //session.sendMessage(new TextMessage("GAME_JOINED: " + gameService.joinDuel(gameMessage.getInviteToken(), gameMessage.getWord()).getId()));
+        return new GameResponse(game.getId(), "GAME_JOINED", game.getCurrentProgressPlayerOne(), "IN_PROGRESS", game.getAttemptsLeftPlayerTwo());
     }
 
-    private GameResponse processGuess(WebSocketSession session, GameMessage gameMessage) throws IOException {
+    private GameResponse processGuess(GameMessage gameMessage) {
         Game game = gameService.makeGuess(gameMessage.getGameId(), gameMessage.getGuess().charAt(0), gameMessage.isPlayerOne());
-        return new GameResponse("GAME_UPDATED", game.getId(), game.isGameFinished() ? "FINISHED" : "IN_PROGRESS", gameMessage.isPlayerOne() ? game.getAttemptsLeftPlayerTwo() : game.getAttemptsLeftPlayerOne());
-        //session.sendMessage(new TextMessage("GAME_UPDATED: " + gameService.makeGuess(gameMessage.getGameId(), gameMessage.getGuess().charAt(0), gameMessage.isPlayerOne())));
+        return new GameResponse(game.getId(), "GAME_UPDATED", gameMessage.isPlayerOne() ? game.getCurrentProgressPlayerOne() : game.getCurrentProgressPlayerTwo(), game.isGameFinished() ? "FINISHED" : "IN_PROGRESS", gameMessage.isPlayerOne() ? game.getAttemptsLeftPlayerOne() : game.getAttemptsLeftPlayerTwo());
     }
 }
 

@@ -16,11 +16,8 @@ public class Game {
     private String guessedLetters;
     private int attemptsLeftPlayerOne;
     private int attemptsLeftPlayerTwo;
-    private boolean isPlayerOneTurn;
+    private boolean playerOneTurn;
     private boolean gameFinished;
     private String inviteToken;
 
-    //TODO: check why lombok doesn't create this setter automatically?
-    public void setIsPlayerOneTurn(boolean b) {
-    }
 }
