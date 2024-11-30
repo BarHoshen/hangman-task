@@ -1,3 +1,4 @@
+/*
 package barh.hangmantask.config;
 
 import com.mongodb.reactivestreams.client.MongoClient;
@@ -19,3 +20,4 @@ public class MongoConfig extends AbstractReactiveMongoConfiguration {
         return "hangman";
     }
 }
+*/

@@ -1,9 +1,8 @@
 package barh.hangmantask.repository;
 
 import barh.hangmantask.entity.Game;
-import org.springframework.data.repository.reactive.ReactiveCrudRepository;
-import reactor.core.publisher.Mono;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface GameRepository extends ReactiveCrudRepository<Game, Long> {
-    Mono<Game> findByInviteToken(String inviteToken);
+public interface GameRepository extends MongoRepository<Game, String> {
+    Game findByInviteToken(String inviteToken);
 }

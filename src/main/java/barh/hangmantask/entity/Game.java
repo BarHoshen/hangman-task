@@ -1,11 +1,12 @@
 package barh.hangmantask.entity;
 
 import lombok.Data;
+import org.springframework.data.annotation.Id;
 
 @Data
 public class Game {
-
-    private Long id;
+    @Id
+    private String id;
 
     private String mode; // SINGLE or DUEL
     private String playerOneWord;
